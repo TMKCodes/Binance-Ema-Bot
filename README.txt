@@ -55,6 +55,9 @@ COMMAND PARAMETERS
                        Default 3.
 --help -h              Show this help. No parameters. Does not start the bot.
 
+--hilow -d             Use only High Low trading and not EMA.
+--hilowp -e            High Low trading mininmum profit per trade.
+
 
 --------------------------------------------------------------------------------------------------
 
