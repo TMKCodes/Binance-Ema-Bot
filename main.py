@@ -406,7 +406,7 @@ def trade():
                 if last == "none":
                     if float(balA) > 0: # Sell first coin of pair if has balance for it.
                         if lastOrder['executedQty'] <= balA:
-                            sell(client, pair, balA], price)
+                            sell(client, pair, balA, price)
                         else:
                             sell(client, pair, lastOrder['executedQty'], price)
                     elif float(balB) > 0: # Buy firt coin of pair if has balance for it.
@@ -415,7 +415,7 @@ def trade():
                     prof = (float(price) - float(lastPrice)) / float(lastPrice) * 100
                     if prof >= hilowp:
                         if lastOrder['executedQty'] <= balA:
-                            sell(client, pair, balA], price)
+                            sell(client, pair, balA, price)
                         else:
                             sell(client, pair, lastOrder['executedQty'], price)
                 elif last == "sold":
@@ -429,7 +429,7 @@ def trade():
                         if lastOrder != 0:
                             if allowPanic == "true" and float(lastOrder['time']) + 604800000 < float(time_res['serverTime']) or lastPrice == 0.0:
                                 if lastOrder['executedQty'] <= balA:
-                                    sell(client, pair, balA], price)
+                                    sell(client, pair, balA, price)
                                 else:
                                     sell(client, pair, lastOrder['executedQty'], price)
                         if float(price) > float(lastPrice) + (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "sell")):
@@ -448,12 +448,12 @@ def trade():
                         if lastOrder != 0:
                             if panictime > 0 and float(lastOrder['time']) + float(panictime) > float(time_res['serverTime']) and allowPanic == "true":
                                 if lastOrder['executedQty'] <= balA:
-                                    sell(client, pair, balA], price)
+                                    sell(client, pair, balA, price)
                                 else:
                                     sell(client, pair, lastOrder['executedQty'], price)
                         if float(price) > float(lastPrice) + (float(lastPrice) * 0.001) or lastPrice == 0.0 or  (allowNegative == "true" and (negativeWay == "both" or negativeWay == "sell")): # Current price bigger than last price when bought
                                 if lastOrder['executedQty'] <= balA:
-                                    sell(client, pair, balA], price)
+                                    sell(client, pair, balA, price)
                                 else:
                                     sell(client, pair, lastOrder['executedQty'], price)
                 elif last == "sold":
