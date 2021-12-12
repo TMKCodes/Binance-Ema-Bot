@@ -22,6 +22,7 @@ api_secret = "AQ5aGGGg14payTYrVA5nYdnlD6CIW1i1cpcWWUG34MwpGBlrsHcVx7RtwOSURHEY"
 # IT IS UP TO YOU TO USE THIS.
 # Author Toni Lukkaroinen
 
+
 pair = ""
 kline_interval = Client.KLINE_INTERVAL_1MINUTE
 emaa = "7"
@@ -34,12 +35,15 @@ lastPrice = 0
 rounding = 3
 startingBalance = 0;
 allowNegative = "false"
+negativeWay = "both"
 lastTradeTime = 0
 allowPanic = "false"
 panicticks = 1
 pairsearch = "none"
 max = 0.0
 sleeptime = 60
+hilow = "false"
+hilowp = 1
 
 def usage():
     print("This is Binance MA trading bot!")
@@ -61,12 +65,16 @@ def usage():
     print("--pair_search -s\tSearch a pair with 3 letter string. For example BTC.")
     print("--rounding -x\tRound the trade amount to decimal places. Some pairs require only 2 decimals. Default 3.")
     print("--help -h\tShow this help. No parameters. Does not start the bot.")
+    print("--hilow -d\tUse only HighLow trading and not EMA.")
+    print("--hilowp -e\tHighLow trading mininum profit per trade.")
     sys.exit()
 
 def parseOpts(argv):
-    global pair, kline_interval, emaa, emab, emaLength, emaOpen, getpairs, Client, rounding, allowNegative, allowPanic, panicticks, pairsearch, max, rounding
+    global pair, kline_interval, emaa, emab, emaLength, emaOpen, getpairs, Client, rounding, allowNegative, negativeWay, allowPanic, panicticks, pairsearch, max, rounding, hilow, hilowp
     try:
-        opts, args = getopt.gnu_getopt(argv, "c:i:a:b:l:r:t:s:m:x:oghnp", ["pair=", "candlestick=", "emaa=", "emab=", "length=", "rounding=", "panic_ticks=", "pair_search=", "max_amount=", "rounding=", "open", "get_pairs", "help", "allow_negative", "allow_panic"])
+        opts, args = getopt.gnu_getopt(argv, "c:i:a:b:l:r:t:s:m:x:w:d:e:oghnp",
+        ["pair=", "candlestick=", "emaa=", "emab=", "length=", "rounding=", "panic_ticks=", "pair_search=",
+        "max_amount=", "rounding=", "negative_way=", "hilow=", "hilowp=", "open", "get_pairs", "help", "allow_negative", "allow_panic"])
         for opt, arg in opts:
             if opt in ("-i", "--candlestick"):
                 if arg == "1m" or arg == "1M":
@@ -126,8 +134,14 @@ def parseOpts(argv):
                 usage()
             elif opt in ("-n", "--allow_negative"):
                 allowNegative = "true"
+            elif opt in ("-w", "--negative_way"):
+                negativeWay = arg
             elif opt in ("-p", "--allow_panic"):
                 allowPanic = "true"
+            elif opt in ("-d", "--hilow"):
+                hilow = arg
+            elif opt in ("-e", "--hilowp"):
+                hilowp = float(arg)
             else:
                 usage()
     except getopt.GetoptError as err:
@@ -170,9 +184,9 @@ def round_decimals_down(number:float, decimals:int=2):
     Returns a value rounded down to a specific number of decimal places.
     """
     if not isinstance(decimals, int):
-        raise TypeError("decimal places must be an integer")
+        print("decimal places must be an integer")
     elif decimals < 0:
-        raise ValueError("decimal places has to be 0 or more")
+        print("decimal places has to be 0 or more")
     elif decimals == 0:
         return math.floor(number)
 
@@ -225,7 +239,7 @@ def getStartingBalance(client):
         startingBalance = balance['free']
 
 def trade():
-    global pair, kline_interval, emaa, emab, emaLength, emaOpen, getpairs, last, startingBalance, allowNegative, allowPanic, lastTradeTime, panicticks, pairsearch, max, sleeptime
+    global pair, kline_interval, emaa, emab, emaLength, emaOpen, getpairs, last, startingBalance, allowNegative, negativeWay, allowPanic, lastTradeTime, panicticks, pairsearch, max, sleeptime
     parseOpts(sys.argv[1:])
     client = Client(api_key, api_secret, testnet=False)
     if getpairs == "true":
@@ -246,6 +260,7 @@ def trade():
     time_res = client.get_server_time()
     getStartingBalance(client)
     while 'serverTime' in time_res:
+        time.sleep(10)
         os.system('cls||clear')
         print("-------------------------------------------------------")
         print("")
@@ -386,42 +401,76 @@ def trade():
                 if lastOrder != 0:
                     print("Panic time:           " + str(int(lastOrder['time']) + int(panictime)))
             print("Server time:          " + str(int(time_res['serverTime'])))
-            if last == "none":
-                if emadiff < 0 and float(balA) > 0: # sell first coin of pair if has balance for it
-                    if lastOrder != 0:
-                        if allowPanic == "true" and float(lastOrder['time']) + 604800000 < float(time_res['serverTime']) or lastPrice == 0.0:
+            if hilow == "true":
+                print("Trading mode:         HiLow")
+                if last == "none":
+                    if float(balA) > 0: # Sell first coin of pair if has balance for it.
+                        if lastOrder['executedQty'] <= balA:
                             sell(client, pair, lastOrder['executedQty'], price)
-                    if float(price) > float(lastPrice) + (float(lastPrice) * 0.001) or lastPrice == 0.0 or allowNegative == "true":
-                        sell(client, pair, balA, price)
-                elif emadiff > 0 and float(balB) > 0: # buy first coin of pair if has balance for it
-                    if lastOrder != 0:
-                        if allowPanic == "true" and float(lastOrder['time']) + 604800000 < float(time_res['serverTime']) or lastPrice == 0.0:
-                            buy(client, pair, float(balB) / float(price), price)
-                    if float(price) < float(lastPrice) - (float(lastPrice) * 0.001) or lastPrice == 0.0 or allowNegative == "true":
+                        else:
+                            sell(client, pair, balA, price)
+                    elif float(balB) > 0: # Buy firt coin of pair if has balance for it.
                         buy(client, pair, float(balB) / float(price), price)
-            elif last == "bought":
-                if emadiff < 0: # sell first coin of pair if has balance for it
-                    if lastOrder != 0:
-                        if panictime > 0 and float(lastOrder['time']) + float(panictime) > float(time_res['serverTime']) and allowPanic == "true":
+                elif last == "bought":
+                    prof = (float(price) - float(lastPrice)) / float(lastPrice) * 100
+                    if prof >= hilowp:
+                        if lastOrder['executedQty'] <= balA:
                             sell(client, pair, lastOrder['executedQty'], price)
-                    if float(price) > float(lastPrice) + (float(lastPrice) * 0.001) or lastPrice == 0.0 or allowNegative == "true": # Current price bigger than last price when bought
-                        sell(client, pair, lastOrder['executedQty'], price)
-            elif last == "sold":
-                if emadiff > 0: # buy first coin of pair if has balance for it
-                    if lastOrder != 0:
-                        if panictime > 0 and float(lastOrder['time']) + float(panictime) > float(time_res['serverTime']) and allowPanic == "true":
-                            buy(client, pair, float(balB) / float(price), price)
-                    if float(price) < float(lastPrice) - (float(lastPrice) * 0.001) or lastPrice == 0.0 or allowNegative == "true": # Current price smaller than last price when sold
+                        else:
+                            sell(client, pair, balA, price)
+                elif last == "sold":
+                    prof = (float(lastPrice) - float(price)) / float(price) * 100
+                    if prof >= hilowp:
                         buy(client, pair, float(balB) / float(price), price)
-            time.sleep(10)
-        else:
-            for o in openOrders:
-                print("Open ID " + str(o['orderId']) + ", " + o['symbol'] + " " + o['side'] + " order, at price " + str(o['price']))
-                print("Order time + 5min: " + str(o['time'] + (5 * 60 * 60)))
-                print("Server time: " + str(time_res['serverTime']))
-                if float(o['time']) + (5 * 60000) < float(time_res['serverTime']):
-                    print("Cancelling order" + str(o['orderId']) + " ID, because 5 minutes has passed.")
-                    client.cancel_order(symbol=o['symbol'], orderId=o['orderId'])
+            elif hilow == "false":
+                print("Trading mode:         EMA")
+                if last == "none":
+                    if emadiff < 0 and float(balA) > 0: # sell first coin of pair if has balance for it
+                        if lastOrder != 0:
+                            if allowPanic == "true" and float(lastOrder['time']) + 604800000 < float(time_res['serverTime']) or lastPrice == 0.0:
+                                if lastOrder['executedQty'] <= balA:
+                                    sell(client, pair, lastOrder['executedQty'], price)
+                                else:
+                                    sell(client, pair, balA, price)
+                        if float(price) > float(lastPrice) + (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "sell")):
+                            if lastOrder['executedQty'] <= balA:
+                                sell(client, pair, lastOrder['executedQty'], price)
+                            else:
+                                sell(client, pair, balA, price)
+                    elif emadiff > 0 and float(balB) > 0: # buy first coin of pair if has balance for it
+                        if lastOrder != 0:
+                            if allowPanic == "true" and float(lastOrder['time']) + 604800000 < float(time_res['serverTime']) or lastPrice == 0.0:
+                                buy(client, pair, float(balB) / float(price), price)
+                        if float(price) < float(lastPrice) - (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "buy")):
+                            buy(client, pair, float(balB) / float(price), price)
+                elif last == "bought":
+                    if emadiff < 0: # sell first coin of pair if has balance for it
+                        if lastOrder != 0:
+                            if panictime > 0 and float(lastOrder['time']) + float(panictime) > float(time_res['serverTime']) and allowPanic == "true":
+                                if lastOrder['executedQty'] <= balA:
+                                    sell(client, pair, lastOrder['executedQty'], price)
+                                else:
+                                    sell(client, pair, balA, price)
+                        if float(price) > float(lastPrice) + (float(lastPrice) * 0.001) or lastPrice == 0.0 or  (allowNegative == "true" and (negativeWay == "both" or negativeWay == "sell")): # Current price bigger than last price when bought
+                                if lastOrder['executedQty'] <= balA:
+                                    sell(client, pair, lastOrder['executedQty'], price)
+                                else:
+                                    sell(client, pair, balA, price)
+                elif last == "sold":
+                    if emadiff > 0: # buy first coin of pair if has balance for it
+                        if lastOrder != 0:
+                            if panictime > 0 and float(lastOrder['time']) + float(panictime) > float(time_res['serverTime']) and allowPanic == "true":
+                                buy(client, pair, float(balB) / float(price), price)
+                        if float(price) < float(lastPrice) - (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "buy")): # Current price smaller than last price when sold
+                            buy(client, pair, float(balB) / float(price), price)
+            else:
+                for o in openOrders:
+                    print("Open ID " + str(o['orderId']) + ", " + o['symbol'] + " " + o['side'] + " order, at price " + str(o['price']))
+                    print("Order time + 5min: " + str(o['time'] + (5 * 60 * 60)))
+                    print("Server time: " + str(time_res['serverTime']))
+                    if float(o['time']) + (5 * 60000) < float(time_res['serverTime']):
+                        print("Cancelling order" + str(o['orderId']) + " ID, because 5 minutes has passed.")
+                        client.cancel_order(symbol=o['symbol'], orderId=o['orderId'])
 
 def main():
     global getpairs
