@@ -98,6 +98,11 @@ CHANGELOG
 1.1.1
   - Fix starting trading without existing trade on coin pair
 
+1.2.2
+  - Add High/Low trading '... --hilow true --hilowp 1.0'.
+  - Add config parser for api key management.
+  - Fix coin pair all time profit calculations.
+  - Fix sleeptime to be candlestick time divided by 6 and to the end of the main loop.
 
 --------------------------------------------------------------------------------------------------
 
