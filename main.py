@@ -413,8 +413,10 @@ def trade():
             if panictime != 0:
                 if lastOrder != 0:
                     if hilow != "true":
-                        print("Panic time:           " + str(int(lastOrder['time']) + int(panictime)))
-            print("Server time:          " + str(int(time_res['serverTime'])))
+                        pt = datetime.fromtimestamp((float(lastOrder['time']) + float(panictime)) / 100)
+                        print("Panic time:           " + pt.ctime())
+            dt = datetime.fromtimestamp(float(time_res['serverTime']) / 1000)
+            print("Server time:          " + dt.ctime())
             if hilow == "true":
                 if last == "none":
                     if float(balA) > 0: # Sell first coin of pair if has balance for it.
