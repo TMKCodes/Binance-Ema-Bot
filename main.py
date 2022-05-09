@@ -339,7 +339,6 @@ def trade():
             else:
                 print("Last price:           " + str(float(lastPrice)))
             print("Last trade was:       " + last)
-            
             allTimeProfit = 0
             if len(orders) > 0:
                 lastP = 0
@@ -416,9 +415,9 @@ def trade():
             if panictime != 0:
                 if lastOrder != 0:
                     if hilow != "true":
-                        pt = datetime.fromtimestamp((float(lastOrder['time']) + float(panictime)) / 100)
+                        pt = datetime.fromtimestamp((lastOrder['time'] + panictime) / 100)
                         print("Panic time:           " + pt.ctime())
-            dt = datetime.fromtimestamp(float(time_res['serverTime']) / 1000)
+            dt = datetime.fromtimestamp(time_res['serverTime'] / 1000)
             print("Server time:          " + dt.ctime())
             if hilow == "true":
                 if last == "none":
