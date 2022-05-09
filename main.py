@@ -264,7 +264,6 @@ def trade():
     getStartingBalance(client)
     starttime = time.ctime()
     while 'serverTime' in time_res:
-        time.sleep(sleeptime / 6)
         os.system('cls||clear')
         print("-------------------------------------------------------")
         print("")
@@ -489,6 +488,7 @@ def trade():
                 if float(o['time']) + (5 * 60000) < float(time_res['serverTime']):
                     print("Cancelling order" + str(o['orderId']) + " ID, because 5 minutes has passed.")
                     client.cancel_order(symbol=o['symbol'], orderId=o['orderId'])
+        time.sleep(sleeptime / 6)
 
 def main():
     global getpairs
