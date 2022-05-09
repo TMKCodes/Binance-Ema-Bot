@@ -306,193 +306,201 @@ def trade():
         if hilow != "true":
             print("Allow panic trade:    " + allowPanic)
         print("Allow high/low trade: " + hilow)
-        openOrders = client.get_open_orders(symbol=pair)
-        if len(openOrders) == 0:
-            orders = client.get_all_orders(symbol=pair)
-            lastPrice = 0
-            lastOrder = 0
-            if len(orders) > 0:
-                for i in reversed(orders):
-                    if i['status'] == "CANCELED":
-                        continue
+        try:
+            openOrders = client.get_open_orders(symbol=pair)
+            if len(openOrders) == 0:
+                try:
+                    orders = client.get_all_orders(symbol=pair)
+                    lastPrice = 0
+                    lastOrder = 0
+                    if len(orders) > 0:
+                        for i in reversed(orders):
+                            if i['status'] == "CANCELED":
+                                continue
+                            else:
+                                lastPrice = float(i['price'])
+                                lastOrder = i
+                                if i['side'] == "BUY":
+                                    last = "bought"
+                                elif i['side'] == "SELL":
+                                    last = "sold"
+                                break
+                        lt = datetime.fromtimestamp(float(lastOrder['time']) / 1000)
+                        print("Last order time:      " + lt.ctime())
+                    prices = client.get_all_tickers()
+                    price = 0
+                    for p in prices:
+                        if p['symbol'] == pair:
+                            price = p['price']
+                            break
+                    print("Curr price:           " + str(price))
+                    if last == "bought":
+                        print("Last price:           " + str(lastPrice) + " + 0.01% = " + str(float(lastPrice) + (float(lastPrice) * 0.001)))
+                    elif last == "sold":
+                        print("Last price:           " + str(lastPrice) + " + 0.01% = " + str(float(lastPrice) + (float(lastPrice) * 0.001)))
                     else:
-                        lastPrice = float(i['price'])
-                        lastOrder = i
-                        if i['side'] == "BUY":
-                            last = "bought"
-                        elif i['side'] == "SELL":
-                            last = "sold"
-                        break
-                lt = datetime.fromtimestamp(float(lastOrder['time']) / 1000)
-                print("Last order time:      " + lt.ctime())
-            prices = client.get_all_tickers()
-            price = 0
-            for p in prices:
-                if p['symbol'] == pair:
-                    price = p['price']
-                    break
-            print("Curr price:           " + str(price))
-            if last == "bought":
-                print("Last price:           " + str(lastPrice) + " + 0.01% = " + str(float(lastPrice) + (float(lastPrice) * 0.001)))
-            elif last == "sold":
-                print("Last price:           " + str(lastPrice) + " + 0.01% = " + str(float(lastPrice) + (float(lastPrice) * 0.001)))
+                        print("Last price:           " + str(float(lastPrice)))
+                    print("Last trade was:       " + last)
+                    allTimeProfit = 0
+                    if len(orders) > 0:
+                        lastP = 0
+                        for order in orders:
+                            if order['status'] == "CANCELED":
+                                continue
+                            elif float(order['price']) == 0:
+                                continue
+                            elif lastP == 0:
+                                lastP = float(order['price'])
+                                continue
+                            else:
+                                if order['side'] == "BUY":
+                                    allTimeProfit = allTimeProfit + (lastP - float(order['price'])) / float(order['price']) * 100
+                                elif order['side'] == "SELL":
+                                    allTimeProfit = allTimeProfit + (float(order['price']) - lastP) / lastP * 100
+                                lastP = float(order['price'])
+                    print("All time profit:      " + str(round_decimals_down(allTimeProfit, 2)) + "%")
+                    if float(price) != 0 and float(lastPrice) != 0:
+                        if last == "bought":
+                            print("Profit next trade:    " + str(round_decimals_down((float(price) - float(lastPrice)) / float(lastPrice) * 100, 2)) + "%")
+                        elif last == "sold":
+                            print("Profit next trade:    " + str(round_decimals_down((float(lastPrice) - float(price)) / float(price) * 100, 2)) + "%")
+                    if float(startingBalance) != 0:
+                        if (float(balB) - float(startingBalance)) / float(startingBalance) * 100 > 500:
+                            getStartingBalance(client)
+                        #print("Runtime profit:       " + str(round_decimals_down((float(startingBalance) - float(balB)) / float(balB) * 100, 2)) + "%")
+                    panictime = 0
+                    if kline_interval == Client.KLINE_INTERVAL_1MINUTE:
+                        panictime = 60000 * float(panicticks)
+                        sleeptime = 60
+                    elif kline_interval == Client.KLINE_INTERVAL_3MINUTE:
+                        panictime = 3 * 60000 * float(panicticks)
+                        sleeptime = 3 * 60
+                    elif kline_interval == Client.KLINE_INTERVAL_5MINUTE:
+                        panictime = 5 * 60000 * float(panicticks)
+                        sleeptime = 5 * 60
+                    elif kline_interval == Client.KLINE_INTERVAL_15MINUTE:
+                        panictime = 15 * 60000 * float(panicticks)
+                        sleeptime = 15 * 60
+                    elif kline_interval == Client.KLINE_INTERVAL_30MINUTE:
+                        panictime = 30 * 60000 * float(panicticks)
+                        sleeptime = 30 * 60
+                    elif kline_interval == Client.KLINE_INTERVAL_1HOUR:
+                        panictime = 60 * 60000 * float(panicticks)
+                        sleeptime = 60 * 60
+                    elif kline_interval == Client.KLINE_INTERVAL_2HOUR:
+                        panictime = 2 * 60 * 60000 * float(panicticks)
+                        sleeptime = 2 * 60 * 60
+                    elif kline_interval == Client.KLINE_INTERVAL_4HOUR:
+                        panictime = 4 * 60 * 60000 * float(panicticks)
+                        sleeptime = 4 * 60 * 60
+                    elif kline_interval == Client.KLINE_INTERVAL_6HOUR:
+                        panictime = 6 * 60 * 60000 * float(panicticks)
+                        sleeptime = 6 * 60 * 60
+                    elif kline_interval == Client.KLINE_INTERVAL_8HOUR:
+                        panictime = 8 * 60 * 60000 * float(panicticks)
+                        sleeptime = 8 * 60 * 60
+                    elif kline_interval == Client.KLINE_INTERVAL_12HOUR:
+                        panictime = 12 * 60 * 60000 * float(panicticks)
+                        sleeptime = 12 * 60 * 60
+                    elif kline_interval == Client.KLINE_INTERVAL_1DAY:
+                        panictime = 24 * 60 * 60000 * float(panicticks)
+                        sleeptime = 24 * 60 * 60
+                    elif kline_interval == Client.KLINE_INTERVAL_3DAY:
+                        panictime = 3 * 24 * 60 * 60000 * float(panicticks)
+                        sleeptime = 3 * 24 * 60 * 60
+                    elif kline_interval == Client.KLINE_INTERVAL_1WEEK:
+                        panictime = 7 * 24 * 60 * 60000 * float(panicticks)
+                        sleeptime = 7 * 24 * 60 * 60
+                    elif kline_interval == Client.KLINE_INTERVAL_1MONTH:
+                        panictime = 30 * 24 * 60 * 60000 * float(panicticks)
+                        sleeptime = 30 * 24 * 60 * 60
+                    if panictime != 0:
+                        if lastOrder != 0:
+                            if hilow != "true":
+                                pt = datetime.fromtimestamp((lastOrder['time'] + panictime) / 100)
+                                print("Panic time:           " + pt.ctime())
+                    dt = datetime.fromtimestamp(time_res['serverTime'] / 1000)
+                    print("Server time:          " + dt.ctime())
+                    if hilow == "true":
+                        if last == "none":
+                            if float(balA) > 0: # Sell first coin of pair if has balance for it.
+                                if lastOrder != 0:
+                                    if lastOrder['executedQty'] <= balA:
+                                        sell(client, pair, balA, price)
+                                    else:
+                                        sell(client, pair, lastOrder['executedQty'], price)
+                                else:
+                                    sell(client, pair, balA, price)
+                            elif float(balB) > 0: # Buy first coin of pair if has balance for it.
+                                buy(client, pair, float(balB) / float(price), price)
+                        elif last == "bought":
+                            prof = (float(price) - float(lastPrice)) / float(lastPrice) * 100
+                            if prof >= hilowp:
+                                if lastOrder['executedQty'] <= balA:
+                                    sell(client, pair, balA, price)
+                                else:
+                                    sell(client, pair, lastOrder['executedQty'], price)
+                        elif last == "sold":
+                            prof = (float(lastPrice) - float(price)) / float(price) * 100
+                            if prof >= hilowp:
+                                if float(balB) > 0:
+                                    buy(client, pair, float(balB) / float(price), price)
+                    elif hilow == "false":
+                        print("Trading mode:         EMA")
+                        if last == "none":
+                            if emadiff < 0 and float(balA) > 0: # sell first coin of pair if has balance for it
+                                if lastOrder != 0:
+                                    if allowPanic == "true" and float(lastOrder['time']) + 604800000 < float(time_res['serverTime']) or lastPrice == 0.0:
+                                        if lastOrder['executedQty'] <= balA:
+                                            sell(client, pair, lastOrder['executedQty'], price)
+                                        else:
+                                            sell(client, pair, balA, price)
+                                if float(price) > float(lastPrice) + (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "sell")):
+                                    if lastOrder['executedQty'] <= balA:
+                                        sell(client, pair, lastOrder['executedQty'], price)
+                                    else:
+                                        sell(client, pair, balA, price)
+                            elif emadiff > 0 and float(balB) > 0: # buy first coin of pair if has balance for it
+                                if lastOrder != 0:
+                                    if allowPanic == "true" and float(lastOrder['time']) + 604800000 < float(time_res['serverTime']) or lastPrice == 0.0:
+                                        buy(client, pair, float(balB) / float(price), price)
+                                if float(price) < float(lastPrice) - (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "buy")):
+                                    buy(client, pair, float(balB) / float(price), price)
+                        elif last == "bought":
+                            if emadiff < 0: # sell first coin of pair if has balance for it
+                                if lastOrder != 0:
+                                    if panictime > 0 and float(lastOrder['time']) + float(panictime) > float(time_res['serverTime']) and allowPanic == "true":
+                                        if lastOrder['executedQty'] <= balA:
+                                            sell(client, pair, balA, price)
+                                        else:
+                                            sell(client, pair, lastOrder['executedQty'], price)
+                                if float(price) > float(lastPrice) + (float(lastPrice) * 0.001) or lastPrice == 0.0 or  (allowNegative == "true" and (negativeWay == "both" or negativeWay == "sell")): # Current price bigger than last price when bought
+                                        if lastOrder['executedQty'] <= balA:
+                                            sell(client, pair, balA, price)
+                                        else:
+                                            sell(client, pair, lastOrder['executedQty'], price)
+                        elif last == "sold":
+                            if emadiff > 0: # buy first coin of pair if has balance for it
+                                if lastOrder != 0:
+                                    if panictime > 0 and float(lastOrder['time']) + float(panictime) > float(time_res['serverTime']) and allowPanic == "true":
+                                        buy(client, pair, float(balB) / float(price), price)
+                                if float(price) < float(lastPrice) - (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "buy")): # Current price smaller than last price when sold
+                                    buy(client, pair, float(balB) / float(price), price)
+                except:
+                    print("Error occurred!")
             else:
-                print("Last price:           " + str(float(lastPrice)))
-            print("Last trade was:       " + last)
-            allTimeProfit = 0
-            if len(orders) > 0:
-                lastP = 0
-                for order in orders:
-                    if order['status'] == "CANCELED":
-                        continue
-                    elif float(order['price']) == 0:
-                        continue
-                    elif lastP == 0:
-                        lastP = float(order['price'])
-                        continue
-                    else:
-                        if order['side'] == "BUY":
-                           allTimeProfit = allTimeProfit + (lastP - float(order['price'])) / float(order['price']) * 100
-                        elif order['side'] == "SELL":
-                           allTimeProfit = allTimeProfit + (float(order['price']) - lastP) / lastP * 100
-                        lastP = float(order['price'])
-            print("All time profit:      " + str(round_decimals_down(allTimeProfit, 2)) + "%")
-            if float(price) != 0 and float(lastPrice) != 0:
-                if last == "bought":
-                    print("Profit next trade:    " + str(round_decimals_down((float(price) - float(lastPrice)) / float(lastPrice) * 100, 2)) + "%")
-                elif last == "sold":
-                    print("Profit next trade:    " + str(round_decimals_down((float(lastPrice) - float(price)) / float(price) * 100, 2)) + "%")
-            if float(startingBalance) != 0:
-                if (float(balB) - float(startingBalance)) / float(startingBalance) * 100 > 500:
-                    getStartingBalance(client)
-                #print("Runtime profit:       " + str(round_decimals_down((float(startingBalance) - float(balB)) / float(balB) * 100, 2)) + "%")
-            panictime = 0
-            if kline_interval == Client.KLINE_INTERVAL_1MINUTE:
-                panictime = 60000 * float(panicticks)
-                sleeptime = 60
-            elif kline_interval == Client.KLINE_INTERVAL_3MINUTE:
-                panictime = 3 * 60000 * float(panicticks)
-                sleeptime = 3 * 60
-            elif kline_interval == Client.KLINE_INTERVAL_5MINUTE:
-                panictime = 5 * 60000 * float(panicticks)
-                sleeptime = 5 * 60
-            elif kline_interval == Client.KLINE_INTERVAL_15MINUTE:
-                panictime = 15 * 60000 * float(panicticks)
-                sleeptime = 15 * 60
-            elif kline_interval == Client.KLINE_INTERVAL_30MINUTE:
-                panictime = 30 * 60000 * float(panicticks)
-                sleeptime = 30 * 60
-            elif kline_interval == Client.KLINE_INTERVAL_1HOUR:
-                panictime = 60 * 60000 * float(panicticks)
-                sleeptime = 60 * 60
-            elif kline_interval == Client.KLINE_INTERVAL_2HOUR:
-                panictime = 2 * 60 * 60000 * float(panicticks)
-                sleeptime = 2 * 60 * 60
-            elif kline_interval == Client.KLINE_INTERVAL_4HOUR:
-                panictime = 4 * 60 * 60000 * float(panicticks)
-                sleeptime = 4 * 60 * 60
-            elif kline_interval == Client.KLINE_INTERVAL_6HOUR:
-                panictime = 6 * 60 * 60000 * float(panicticks)
-                sleeptime = 6 * 60 * 60
-            elif kline_interval == Client.KLINE_INTERVAL_8HOUR:
-                panictime = 8 * 60 * 60000 * float(panicticks)
-                sleeptime = 8 * 60 * 60
-            elif kline_interval == Client.KLINE_INTERVAL_12HOUR:
-                panictime = 12 * 60 * 60000 * float(panicticks)
-                sleeptime = 12 * 60 * 60
-            elif kline_interval == Client.KLINE_INTERVAL_1DAY:
-                panictime = 24 * 60 * 60000 * float(panicticks)
-                sleeptime = 24 * 60 * 60
-            elif kline_interval == Client.KLINE_INTERVAL_3DAY:
-                panictime = 3 * 24 * 60 * 60000 * float(panicticks)
-                sleeptime = 3 * 24 * 60 * 60
-            elif kline_interval == Client.KLINE_INTERVAL_1WEEK:
-                panictime = 7 * 24 * 60 * 60000 * float(panicticks)
-                sleeptime = 7 * 24 * 60 * 60
-            elif kline_interval == Client.KLINE_INTERVAL_1MONTH:
-                panictime = 30 * 24 * 60 * 60000 * float(panicticks)
-                sleeptime = 30 * 24 * 60 * 60
-            if panictime != 0:
-                if lastOrder != 0:
-                    if hilow != "true":
-                        pt = datetime.fromtimestamp((lastOrder['time'] + panictime) / 100)
-                        print("Panic time:           " + pt.ctime())
-            dt = datetime.fromtimestamp(time_res['serverTime'] / 1000)
-            print("Server time:          " + dt.ctime())
-            if hilow == "true":
-                if last == "none":
-                    if float(balA) > 0: # Sell first coin of pair if has balance for it.
-                        if lastOrder != 0:
-                            if lastOrder['executedQty'] <= balA:
-                                sell(client, pair, balA, price)
-                            else:
-                                sell(client, pair, lastOrder['executedQty'], price)
-                        else:
-                            sell(client, pair, balA, price)
-                    elif float(balB) > 0: # Buy first coin of pair if has balance for it.
-                        buy(client, pair, float(balB) / float(price), price)
-                elif last == "bought":
-                    prof = (float(price) - float(lastPrice)) / float(lastPrice) * 100
-                    if prof >= hilowp:
-                        if lastOrder['executedQty'] <= balA:
-                            sell(client, pair, balA, price)
-                        else:
-                            sell(client, pair, lastOrder['executedQty'], price)
-                elif last == "sold":
-                    prof = (float(lastPrice) - float(price)) / float(price) * 100
-                    if prof >= hilowp:
-                        if float(balB) > 0:
-                            buy(client, pair, float(balB) / float(price), price)
-            elif hilow == "false":
-                print("Trading mode:         EMA")
-                if last == "none":
-                    if emadiff < 0 and float(balA) > 0: # sell first coin of pair if has balance for it
-                        if lastOrder != 0:
-                            if allowPanic == "true" and float(lastOrder['time']) + 604800000 < float(time_res['serverTime']) or lastPrice == 0.0:
-                                if lastOrder['executedQty'] <= balA:
-                                    sell(client, pair, lastOrder['executedQty'], price)
-                                else:
-                                    sell(client, pair, balA, price)
-                        if float(price) > float(lastPrice) + (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "sell")):
-                            if lastOrder['executedQty'] <= balA:
-                                sell(client, pair, lastOrder['executedQty'], price)
-                            else:
-                                sell(client, pair, balA, price)
-                    elif emadiff > 0 and float(balB) > 0: # buy first coin of pair if has balance for it
-                        if lastOrder != 0:
-                            if allowPanic == "true" and float(lastOrder['time']) + 604800000 < float(time_res['serverTime']) or lastPrice == 0.0:
-                                buy(client, pair, float(balB) / float(price), price)
-                        if float(price) < float(lastPrice) - (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "buy")):
-                            buy(client, pair, float(balB) / float(price), price)
-                elif last == "bought":
-                    if emadiff < 0: # sell first coin of pair if has balance for it
-                        if lastOrder != 0:
-                            if panictime > 0 and float(lastOrder['time']) + float(panictime) > float(time_res['serverTime']) and allowPanic == "true":
-                                if lastOrder['executedQty'] <= balA:
-                                    sell(client, pair, balA, price)
-                                else:
-                                    sell(client, pair, lastOrder['executedQty'], price)
-                        if float(price) > float(lastPrice) + (float(lastPrice) * 0.001) or lastPrice == 0.0 or  (allowNegative == "true" and (negativeWay == "both" or negativeWay == "sell")): # Current price bigger than last price when bought
-                                if lastOrder['executedQty'] <= balA:
-                                    sell(client, pair, balA, price)
-                                else:
-                                    sell(client, pair, lastOrder['executedQty'], price)
-                elif last == "sold":
-                    if emadiff > 0: # buy first coin of pair if has balance for it
-                        if lastOrder != 0:
-                            if panictime > 0 and float(lastOrder['time']) + float(panictime) > float(time_res['serverTime']) and allowPanic == "true":
-                                buy(client, pair, float(balB) / float(price), price)
-                        if float(price) < float(lastPrice) - (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "buy")): # Current price smaller than last price when sold
-                            buy(client, pair, float(balB) / float(price), price)
-        else:
-            for o in openOrders:
-                print("Open ID " + str(o['orderId']) + ", " + o['symbol'] + " " + o['side'] + " order, at price " + str(o['price']))
-                print("Order time + 5min:     " + str(o['time'] + (5 * 60 * 60)))
-                print("Server time:           " + str(time_res['serverTime']))
-                if float(o['time']) + (5 * 60000) < float(time_res['serverTime']):
-                    print("Cancelling order" + str(o['orderId']) + " ID, because 5 minutes has passed.")
-                    client.cancel_order(symbol=o['symbol'], orderId=o['orderId'])
-        time.sleep(sleeptime / 6)
+                for o in openOrders:
+                    print("Open ID " + str(o['orderId']) + ", " + o['symbol'] + " " + o['side'] + " order, at price " + str(o['price']))
+                    dt = datetime.fromtimestamp(o['time'] / 1000)
+                    print("Order cancel time:     " + dt.ctime())
+                    dt = datetime.fromtimestamp(time_res['serverTime'] / 1000)
+                    print("Server time:          " + dt.ctime())
+                    if float(o['time']) + (5 * 60000) < float(time_res['serverTime']):
+                        print("Cancelling order" + str(o['orderId']) + " ID, because 5 minutes has passed.")
+                        client.cancel_order(symbol=o['symbol'], orderId=o['orderId'])
+            time.sleep(sleeptime / 6)
+        except:
+            print("Error occurred")
 
 def main():
     global getpairs
