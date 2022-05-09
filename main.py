@@ -3,11 +3,13 @@ from datetime import datetime
 import json
 from binance.client import Client
 from binance.enums import *
+import configparser
 
-# Add your Binance api key and secret!
-
-api_key = "8V01KyzR2dKpvkTD1mloNRCcSyL7s4wP56EPvcxbHN1jlvp2P3YTBLuJZIw27G7t"
-api_secret = "AQ5aGGGg14payTYrVA5nYdnlD6CIW1i1cpcWWUG34MwpGBlrsHcVx7RtwOSURHEY"
+# make key.ini file for these to be read.
+config = configparser.ConfigParser()
+config.read('secrets.ini')
+api_key = config['api']['key']
+api_secret = config['api']['secret']
 
 # DO NOT TOUCH AFTER THIS!
 # BUT READ THE FOLLOWING
@@ -33,7 +35,7 @@ getpairs = "false"
 last = "none"
 lastPrice = 0
 rounding = 3
-startingBalance = 0;
+startingBalance = 0
 allowNegative = "false"
 negativeWay = "both"
 lastTradeTime = 0
@@ -43,7 +45,8 @@ pairsearch = "none"
 max = 0.0
 sleeptime = 60
 hilow = "false"
-hilowp = 1
+hilowp = 1.0
+starttime = ""
 
 def usage():
     print("This is Binance MA trading bot!")
@@ -70,7 +73,7 @@ def usage():
     sys.exit()
 
 def parseOpts(argv):
-    global pair, kline_interval, emaa, emab, emaLength, emaOpen, getpairs, Client, rounding, allowNegative, negativeWay, allowPanic, panicticks, pairsearch, max, rounding, hilow, hilowp
+    global pair, kline_interval, emaa, emab, emaLength, emaOpen, getpairs, Client, rounding, allowNegative, negativeWay, allowPanic, panicticks, pairsearch, max, rounding, hilow, hilowp, starttime
     try:
         opts, args = getopt.gnu_getopt(argv, "c:i:a:b:l:r:t:s:m:x:w:d:e:oghnp",
         ["pair=", "candlestick=", "emaa=", "emab=", "length=", "rounding=", "panic_ticks=", "pair_search=",
@@ -239,7 +242,7 @@ def getStartingBalance(client):
         startingBalance = balance['free']
 
 def trade():
-    global pair, kline_interval, emaa, emab, emaLength, emaOpen, getpairs, last, startingBalance, allowNegative, negativeWay, allowPanic, lastTradeTime, panicticks, pairsearch, max, sleeptime
+    global pair, kline_interval, emaa, emab, emaLength, emaOpen, getpairs, last, startingBalance, allowNegative, negativeWay, allowPanic, lastTradeTime, panicticks, pairsearch, max, sleeptime, hilow, hilowp, starttime
     parseOpts(sys.argv[1:])
     client = Client(api_key, api_secret, testnet=False)
     if getpairs == "true":
@@ -256,11 +259,12 @@ def trade():
                     print(json.dumps(coin, indent=4, sort_keys=False))
             return
     if pair == "" or api_key == "" or api_secret == "":
-        usage();
+        usage()
     time_res = client.get_server_time()
     getStartingBalance(client)
+    starttime = time.ctime()
     while 'serverTime' in time_res:
-        time.sleep(10)
+        time.sleep(sleeptime / 30)
         os.system('cls||clear')
         print("-------------------------------------------------------")
         print("")
@@ -281,25 +285,32 @@ def trade():
             if balanceB != None:
                 balB = balanceB['free']
         print("Balances: " + str(balA) + " " + pair[:3] + ", " + str(balB) + " " + pair[3:])
+        print("Started trading:      " + starttime)
+        print("Current time:         " + time.ctime())
         start = EMAStartTime(emaLength)
         end = currentTimeMillis()
         klines = client.get_historical_klines(pair, kline_interval, start, end)
         print("Candlestick interval: " + kline_interval)
         EMAA = float(calculateLastEMA(klines, emaa))
-        print("EMA " + str(emaa) + ":                " + str(EMAA))
+        if hilow != "true":
+            print("EMA " + str(emaa) + ":                " + str(EMAA))
         EMAB = float(calculateLastEMA(klines, emab))
-        print("EMA " + str(emab) + ":               " + str(EMAB))
+        if hilow != "true":
+            print("EMA " + str(emab) + ":               " + str(EMAB))
         emadiff = float(EMAA) - float(EMAB)
-        print("EMA difference:       " + str(emadiff))
+        if hilow != "true":
+            print("EMA difference:       " + str(emadiff))
         if max != 0:
             print("Max trade enabled:    true " + str(max) + " " + pair[:3])
-        print("Allow negative trade: " + allowNegative)
-        print("Allow panic trade:    " + allowPanic)
+        if hilow != "true":
+            print("Allow negative trade: " + allowNegative)
+        if hilow != "true":
+            print("Allow panic trade:    " + allowPanic)
+        print("Allow high/low trade: " + hilow)
         openOrders = client.get_open_orders(symbol=pair)
         if len(openOrders) == 0:
             orders = client.get_all_orders(symbol=pair)
             lastPrice = 0
-            #print(orders)
             lastOrder = 0
             if len(orders) > 0:
                 for i in reversed(orders):
@@ -339,7 +350,10 @@ def trade():
                         lastP = float(order['price'])
                         continue
                     else:
-                        allTimeProfit = allTimeProfit + (float(order['price']) - lastP) / lastP * 100
+                        if order['side'] == "BUY":
+                           allTimeProfit = allTimeProfit + (lastP - float(order['price'])) / float(order['price']) * 100
+                        elif order['side'] == "SELL":
+                           allTimeProfit = allTimeProfit + (float(order['price']) - lastP) / lastP * 100
                         lastP = float(order['price'])
             print("All time profit:      " + str(round_decimals_down(allTimeProfit, 2)) + "%")
             if float(price) != 0 and float(lastPrice) != 0:
@@ -399,17 +413,20 @@ def trade():
                 sleeptime = 30 * 24 * 60 * 60
             if panictime != 0:
                 if lastOrder != 0:
-                    print("Panic time:           " + str(int(lastOrder['time']) + int(panictime)))
+                    if hilow != "true":
+                        print("Panic time:           " + str(int(lastOrder['time']) + int(panictime)))
             print("Server time:          " + str(int(time_res['serverTime'])))
             if hilow == "true":
-                print("Trading mode:         HiLow")
                 if last == "none":
                     if float(balA) > 0: # Sell first coin of pair if has balance for it.
-                        if lastOrder['executedQty'] <= balA:
-                            sell(client, pair, balA, price)
+                        if lastOrder != 0:
+                            if lastOrder['executedQty'] <= balA:
+                                sell(client, pair, balA, price)
+                            else:
+                                sell(client, pair, lastOrder['executedQty'], price)
                         else:
-                            sell(client, pair, lastOrder['executedQty'], price)
-                    elif float(balB) > 0: # Buy firt coin of pair if has balance for it.
+                            sell(client, pair, balA, price)
+                    elif float(balB) > 0: # Buy first coin of pair if has balance for it.
                         buy(client, pair, float(balB) / float(price), price)
                 elif last == "bought":
                     prof = (float(price) - float(lastPrice)) / float(lastPrice) * 100
@@ -421,7 +438,8 @@ def trade():
                 elif last == "sold":
                     prof = (float(lastPrice) - float(price)) / float(price) * 100
                     if prof >= hilowp:
-                        buy(client, pair, float(balB) / float(price), price)
+                        if float(balB) > 0:
+                            buy(client, pair, float(balB) / float(price), price)
             elif hilow == "false":
                 print("Trading mode:         EMA")
                 if last == "none":
@@ -463,14 +481,14 @@ def trade():
                                 buy(client, pair, float(balB) / float(price), price)
                         if float(price) < float(lastPrice) - (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "buy")): # Current price smaller than last price when sold
                             buy(client, pair, float(balB) / float(price), price)
-            else:
-                for o in openOrders:
-                    print("Open ID " + str(o['orderId']) + ", " + o['symbol'] + " " + o['side'] + " order, at price " + str(o['price']))
-                    print("Order time + 5min: " + str(o['time'] + (5 * 60 * 60)))
-                    print("Server time: " + str(time_res['serverTime']))
-                    if float(o['time']) + (5 * 60000) < float(time_res['serverTime']):
-                        print("Cancelling order" + str(o['orderId']) + " ID, because 5 minutes has passed.")
-                        client.cancel_order(symbol=o['symbol'], orderId=o['orderId'])
+        else:
+            for o in openOrders:
+                print("Open ID " + str(o['orderId']) + ", " + o['symbol'] + " " + o['side'] + " order, at price " + str(o['price']))
+                print("Order time + 5min:     " + str(o['time'] + (5 * 60 * 60)))
+                print("Server time:           " + str(time_res['serverTime']))
+                if float(o['time']) + (5 * 60000) < float(time_res['serverTime']):
+                    print("Cancelling order" + str(o['orderId']) + " ID, because 5 minutes has passed.")
+                    client.cancel_order(symbol=o['symbol'], orderId=o['orderId'])
 
 def main():
     global getpairs

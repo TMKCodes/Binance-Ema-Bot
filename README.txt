@@ -20,17 +20,24 @@ has downloaded.
 Then open Powershell and use the command 'pip install python-binance' to
 install Binance python API requirements for this script.
 
-Then change lines 9 and 10 to include your Binance keys, which you can get
-from Binance website by creating API keys.
+Then in Powershell 'cd' to the location where you downloaded this bot scripts.
 
-Then in Powershell 'cd' to the location where you downloaded this bot scripts
-and execute it with command 'python .\main.py --pair YOURPAIR'. Plus your
-additional parameters.
+Then create secrets.ini file where you create
+```
+[api]
+key=YOURBINANCEKEYHERE
+secret=YOURBINANCESECRETHERE
+```
+
+Execute the bot with command 'python .\main.py --pair YOURPAIR'. Plus your
+additional parameters. 
+
+For example 'python .\main.py --pair BNBEUR --hilow true --hilowp 1'
 
 To change settings of the bot you need to ctr+c end it and run the script
 with different parameters.
 
-The software currently supports only coins with 3 letters, so 6 letter pairs.
+The bot currently supports only coins with 3 letters, so 6 letter pairs.
 
 
 --------------------------------------------------------------------------------------------------
