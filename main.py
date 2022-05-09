@@ -264,7 +264,7 @@ def trade():
     getStartingBalance(client)
     starttime = time.ctime()
     while 'serverTime' in time_res:
-        time.sleep(sleeptime / 30)
+        time.sleep(sleeptime / 6)
         os.system('cls||clear')
         print("-------------------------------------------------------")
         print("")
@@ -447,9 +447,9 @@ def trade():
                         if lastOrder != 0:
                             if allowPanic == "true" and float(lastOrder['time']) + 604800000 < float(time_res['serverTime']) or lastPrice == 0.0:
                                 if lastOrder['executedQty'] <= balA:
-                                    sell(client, pair, balA, price)
-                                else:
                                     sell(client, pair, lastOrder['executedQty'], price)
+                                else:
+                                    sell(client, pair, balA, price)
                         if float(price) > float(lastPrice) + (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "sell")):
                             if lastOrder['executedQty'] <= balA:
                                 sell(client, pair, lastOrder['executedQty'], price)
