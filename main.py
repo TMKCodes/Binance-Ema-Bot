@@ -323,6 +323,8 @@ def trade():
                         elif i['side'] == "SELL":
                             last = "sold"
                         break
+                lt = datetime.fromtimestamp(float(lastOrder['time']) / 1000)
+                print("Last order time:      " + lt.ctime())
             prices = client.get_all_tickers()
             price = 0
             for p in prices:
@@ -337,6 +339,7 @@ def trade():
             else:
                 print("Last price:           " + str(float(lastPrice)))
             print("Last trade was:       " + last)
+            
             allTimeProfit = 0
             if len(orders) > 0:
                 lastP = 0
