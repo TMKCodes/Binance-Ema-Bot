@@ -206,7 +206,7 @@ def buy(client, pair, qty, price):
         if float(qty) > float(max):
             qty = float(max)
     print("Buy quantity " + str(qty))
-    print("Byuing " + pair[:3] + " at " + price + " amount " + str(qty))
+    print("Buying " + pair[:3] + " at " + price + " amount " + str(qty))
     order = client.create_order(
         symbol=pair,
         side=SIDE_BUY,
@@ -335,9 +335,9 @@ def trade():
                             break
                     print("Curr price:           " + str(price))
                     if last == "bought":
-                        print("Last price:           " + str(lastPrice) + " + 0.01% = " + str(float(lastPrice) + (float(lastPrice) * 0.001)))
+                        print("Last price:           " + str(lastPrice) + " + 0.075% = " + str(float(lastPrice) + (float(lastPrice) * 0.0075)))
                     elif last == "sold":
-                        print("Last price:           " + str(lastPrice) + " + 0.01% = " + str(float(lastPrice) + (float(lastPrice) * 0.001)))
+                        print("Last price:           " + str(lastPrice) + " + 0.075% = " + str(float(lastPrice) + (float(lastPrice) * 0.0075)))
                     else:
                         print("Last price:           " + str(float(lastPrice)))
                     print("Last trade was:       " + last)
@@ -486,21 +486,23 @@ def trade():
                                         buy(client, pair, float(balB) / float(price), price)
                                 if float(price) < float(lastPrice) - (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "buy")): # Current price smaller than last price when sold
                                     buy(client, pair, float(balB) / float(price), price)
-                except:
+                except err:
                     print("Error occurred!")
+                    print(err)
             else:
                 for o in openOrders:
                     print("Open ID " + str(o['orderId']) + ", " + o['symbol'] + " " + o['side'] + " order, at price " + str(o['price']))
                     dt = datetime.fromtimestamp(o['time'] / 1000)
-                    print("Order cancel time:     " + dt.ctime())
+                    print("Order cancel time:    " + dt.ctime())
                     dt = datetime.fromtimestamp(time_res['serverTime'] / 1000)
                     print("Server time:          " + dt.ctime())
                     if float(o['time']) + (5 * 60000) < float(time_res['serverTime']):
                         print("Cancelling order" + str(o['orderId']) + " ID, because 5 minutes has passed.")
                         client.cancel_order(symbol=o['symbol'], orderId=o['orderId'])
             time.sleep(sleeptime / 6)
-        except:
+        except err:
             print("Error occurred")
+            print(err)
 
 def main():
     global getpairs
