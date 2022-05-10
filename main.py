@@ -47,7 +47,8 @@ sleeptime = 60
 hilow = "false"
 hilowp = 1.0
 starttime = ""
-
+negativeMax = 0
+                                        
 def usage():
     print("This is Binance MA trading bot!")
     print("You can use this bot with your api keys, you need to change them in the script code api_key and api_secret.")
@@ -242,7 +243,7 @@ def getStartingBalance(client):
         startingBalance = balance['free']
 
 def trade():
-    global pair, kline_interval, emaa, emab, emaLength, emaOpen, getpairs, last, startingBalance, allowNegative, negativeWay, allowPanic, lastTradeTime, panicticks, pairsearch, max, sleeptime, hilow, hilowp, starttime
+    global pair, kline_interval, emaa, emab, emaLength, emaOpen, getpairs, last, startingBalance, allowNegative, negativeWay, allowPanic, lastTradeTime, panicticks, pairsearch, max, sleeptime, hilow, hilowp, starttime, negativeMax
     parseOpts(sys.argv[1:])
     client = Client(api_key, api_secret, testnet=False)
     if getpairs == "true":
@@ -301,11 +302,14 @@ def trade():
             print("EMA difference:       " + str(emadiff))
         if max != 0:
             print("Max trade enabled:    true " + str(max) + " " + pair[:3])
-        if hilow != "true":
+        if allowNegative == "true" and negativeMax < 1:
             print("Allow negative trade: " + allowNegative)
-        if hilow != "true":
+        elif allowNegative == "true" and negativeMax > 0:
+            print("Allow negative trade: Next trade must be positive." )
+        if allowPanic == "true":
             print("Allow panic trade:    " + allowPanic)
-        print("Allow high/low trade: " + hilow)
+        if hilow == "true":
+            print("Allow high/low trade: " + hilow)
         try:
             openOrders = client.get_open_orders(symbol=pair)
             if len(openOrders) == 0:
@@ -450,45 +454,56 @@ def trade():
                                 if float(balB) > 0:
                                     buy(client, pair, float(balB) / float(price), price)
                     elif hilow == "false":
-                        print("Trading mode:         EMA")
                         if last == "none":
                             if emadiff < 0 and float(balA) > 0: # sell first coin of pair if has balance for it
                                 if lastOrder != 0:
                                     if allowPanic == "true" and float(lastOrder['time']) + 604800000 < float(time_res['serverTime']) or lastPrice == 0.0:
                                         if lastOrder['executedQty'] <= balA:
+                                            negativeMax = 0
                                             sell(client, pair, lastOrder['executedQty'], price)
                                         else:
+                                            negativeMax = 0
                                             sell(client, pair, balA, price)
-                                if float(price) > float(lastPrice) + (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "sell")):
+                                if float(price) > float(lastPrice) + (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "sell") and negativeMax < 1):
                                     if lastOrder['executedQty'] <= balA:
+                                        negativeMax = 1
                                         sell(client, pair, lastOrder['executedQty'], price)
                                     else:
+                                        negativeMax = 1
                                         sell(client, pair, balA, price)
                             elif emadiff > 0 and float(balB) > 0: # buy first coin of pair if has balance for it
                                 if lastOrder != 0:
                                     if allowPanic == "true" and float(lastOrder['time']) + 604800000 < float(time_res['serverTime']) or lastPrice == 0.0:
+                                        negativeMax = 0
                                         buy(client, pair, float(balB) / float(price), price)
-                                if float(price) < float(lastPrice) - (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "buy")):
+                                if float(price) < float(lastPrice) - (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "buy") and negativeMax < 1):
+                                    negativeMax = 1
                                     buy(client, pair, float(balB) / float(price), price)
                         elif last == "bought":
                             if emadiff < 0: # sell first coin of pair if has balance for it
                                 if lastOrder != 0:
                                     if panictime > 0 and float(lastOrder['time']) + float(panictime) > float(time_res['serverTime']) and allowPanic == "true":
                                         if lastOrder['executedQty'] <= balA:
+                                            negativeMax = 0
                                             sell(client, pair, balA, price)
                                         else:
+                                            negativeMax = 0
                                             sell(client, pair, lastOrder['executedQty'], price)
-                                if float(price) > float(lastPrice) + (float(lastPrice) * 0.001) or lastPrice == 0.0 or  (allowNegative == "true" and (negativeWay == "both" or negativeWay == "sell")): # Current price bigger than last price when bought
+                                if float(price) > float(lastPrice) + (float(lastPrice) * 0.001) or lastPrice == 0.0 or  (allowNegative == "true" and (negativeWay == "both" or negativeWay == "sell") and negativeMax < 1): # Current price bigger than last price when bought
                                         if lastOrder['executedQty'] <= balA:
+                                            negativeMax = 1
                                             sell(client, pair, balA, price)
                                         else:
+                                            negativeMax = 1
                                             sell(client, pair, lastOrder['executedQty'], price)
                         elif last == "sold":
                             if emadiff > 0: # buy first coin of pair if has balance for it
                                 if lastOrder != 0:
                                     if panictime > 0 and float(lastOrder['time']) + float(panictime) > float(time_res['serverTime']) and allowPanic == "true":
+                                        negativeMax = 0
                                         buy(client, pair, float(balB) / float(price), price)
-                                if float(price) < float(lastPrice) - (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "buy")): # Current price smaller than last price when sold
+                                if float(price) < float(lastPrice) - (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "buy") and negativeMax < 1): # Current price smaller than last price when sold
+                                    negativeMax = 1
                                     buy(client, pair, float(balB) / float(price), price)
                 except err:
                     print("Error occurred!")
@@ -503,7 +518,7 @@ def trade():
                     if float(o['time']) + (5 * 60000) < float(time_res['serverTime']):
                         print("Cancelling order" + str(o['orderId']) + " ID, because 5 minutes has passed.")
                         client.cancel_order(symbol=o['symbol'], orderId=o['orderId'])
-            time.sleep(sleeptime / 6)
+            time.sleep(5)
         except err:
             print("Error occurred")
             print(err)
