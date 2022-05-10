@@ -342,10 +342,14 @@ def trade():
                         print("Last price:           " + str(float(lastPrice)))
                     print("Last trade was:       " + last)
                     allTimeProfit = 0
+                    dt = datetime.now()
+                    sdt = datetime(year = dt.year, month=dt.month, day=dt.day, hour=0, second=0)
                     if len(orders) > 0:
                         lastP = 0
                         for order in orders:
-                            if order['status'] == "CANCELED":
+                            if float(order['time'] / 1000) < float(sdt.timestamp()):
+                                continue
+                            elif order['status'] == "CANCELED":
                                 continue
                             elif float(order['price']) == 0:
                                 continue
@@ -358,7 +362,7 @@ def trade():
                                 elif order['side'] == "SELL":
                                     allTimeProfit = allTimeProfit + (float(order['price']) - lastP) / lastP * 100
                                 lastP = float(order['price'])
-                    print("All time profit:      " + str(round_decimals_down(allTimeProfit, 2)) + "%")
+                    print("Daily profit:         " + str(round_decimals_down(allTimeProfit, 2)) + "%")
                     if float(price) != 0 and float(lastPrice) != 0:
                         if last == "bought":
                             print("Profit next trade:    " + str(round_decimals_down((float(price) - float(lastPrice)) / float(lastPrice) * 100, 2)) + "%")
