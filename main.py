@@ -197,44 +197,57 @@ def round_decimals_down(number:float, decimals:int=2):
     factor = 10 ** decimals
     return math.floor(number * factor) / factor
 
+def report(pair, amount, price, side):
+    f = open("report.csv", "a")
+    f.write(pair + ", " + amount + ", " + price + ", " + side)
+    f.close()
+
 def buy(client, pair, qty, price):
     global last, rounding, max, sleeptime
-    qty = round_decimals_down(float(qty) * 0.95, int(rounding))
-    if float(qty) <= 0.001 and pair == "ETHBTC":
+    try:
+        qty = round_decimals_down(float(qty) * 0.95, int(rounding))
+        if float(qty) <= 0.001 and pair == "ETHBTC":
+            last = "bought"
+            return
+        if max != 0:
+            if float(qty) > float(max):
+                qty = float(max)
+        print("Buy quantity " + str(qty))
+        print("Buying " + pair[:3] + " at " + price + " amount " + str(qty))
+        order = client.create_order(
+            symbol=pair,
+            side=SIDE_BUY,
+            type=ORDER_TYPE_LIMIT,
+            timeInForce=TIME_IN_FORCE_GTC,
+            quantity=qty,
+            price=price)
         last = "bought"
-        return
-    if max != 0:
-        if float(qty) > float(max):
-            qty = float(max)
-    print("Buy quantity " + str(qty))
-    print("Buying " + pair[:3] + " at " + price + " amount " + str(qty))
-    order = client.create_order(
-        symbol=pair,
-        side=SIDE_BUY,
-        type=ORDER_TYPE_LIMIT,
-        timeInForce=TIME_IN_FORCE_GTC,
-        quantity=qty,
-        price=price)
-    last = "bought"
-    time.sleep(sleeptime)
+        report(pair, qty, price, "bought")
+        time.sleep(10)
+    except:
+        print("Error happened on buy.")
 
 def sell(client, pair, qty, price):
     global last, rounding, sleeptime
-    qty = round_decimals_down(float(qty) * 0.95, int(rounding))
-    if float(qty) <= 0.001 and pair == "ETHBTC":
+    try: 
+        qty = round_decimals_down(float(qty) * 0.95, int(rounding))
+        if float(qty) <= 0.001 and pair == "ETHBTC":
+            last = "sold"
+            return
+        print("Sell quantity " + str(qty))
+        print("Selling " + pair[:3] + " at " + price + " amount " + str(qty))
+        order = client.create_order(
+            symbol=pair,
+            side=SIDE_SELL,
+            type=ORDER_TYPE_LIMIT,
+            timeInForce=TIME_IN_FORCE_GTC,
+            quantity=qty,
+            price=price)
         last = "sold"
-        return
-    print("Sell quantity " + str(qty))
-    print("Selling " + pair[:3] + " at " + price + " amount " + str(qty))
-    order = client.create_order(
-        symbol=pair,
-        side=SIDE_SELL,
-        type=ORDER_TYPE_LIMIT,
-        timeInForce=TIME_IN_FORCE_GTC,
-        quantity=qty,
-        price=price)
-    last = "sold"
-    time.sleep(sleeptime)
+        report(pair, qty, price, "sold")
+        time.sleep(10)
+    except: 
+        print("Error happened on sale.")
 
 def getStartingBalance(client):
     global startingBalance
@@ -465,10 +478,6 @@ def trade():
                                             negativeMax = 0
                                             sell(client, pair, balA, price)
                                 if float(price) > float(lastPrice) + (float(lastPrice) * 0.001) or lastPrice == 0.0 or (allowNegative == "true" and (negativeWay == "both" or negativeWay == "sell") and negativeMax < 1):
-                                    if lastOrder['executedQty'] <= balA:
-                                        negativeMax = 1
-                                        sell(client, pair, lastOrder['executedQty'], price)
-                                    else:
                                         negativeMax = 1
                                         sell(client, pair, balA, price)
                             elif emadiff > 0 and float(balB) > 0: # buy first coin of pair if has balance for it
@@ -511,7 +520,7 @@ def trade():
             else:
                 for o in openOrders:
                     print("Open ID " + str(o['orderId']) + ", " + o['symbol'] + " " + o['side'] + " order, at price " + str(o['price']))
-                    dt = datetime.fromtimestamp(o['time'] / 1000)
+                    dt = datetime.fromtimestamp((o['time'] + (5 * 60000)) / 1000)
                     print("Order cancel time:    " + dt.ctime())
                     dt = datetime.fromtimestamp(time_res['serverTime'] / 1000)
                     print("Server time:          " + dt.ctime())
