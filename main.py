@@ -51,6 +51,7 @@ hilowp = 1.0
 starttime = ""
 negativeMax = 0
 forceNone = "false"
+sleeptime = 1
                                         
 def usage():
     print("This is Binance MA trading bot!")
@@ -77,7 +78,7 @@ def usage():
     sys.exit()
 
 def parseOpts(argv):
-    global pair, pairA, pairB, kline_interval, emaa, emab, emaLength, emaOpen, getpairs, Client, rounding, allowNegative, forceNone, negativeWay, allowPanic, panicticks, pairsearch, max, rounding, hilow, hilowp, starttime
+    global pair, pairA, pairB, sleeptime, kline_interval, emaa, emab, emaLength, emaOpen, getpairs, Client, rounding, allowNegative, forceNone, negativeWay, allowPanic, panicticks, pairsearch, max, rounding, hilow, hilowp, starttime
     try:
         opts, args = getopt.gnu_getopt(argv, "c:i:a:b:l:r:t:s:m:x:w:d:e:f:oghnp",
         ["pair=", "candlestick=", "emaa=", "emab=", "length=", "rounding=", "panic_ticks=", "pair_search=",
@@ -86,34 +87,49 @@ def parseOpts(argv):
             if opt in ("-i", "--candlestick"):
                 if arg == "1m" or arg == "1M":
                     kline_interval = Client.KLINE_INTERVAL_1MINUTE
+                    sleeptime = 1
                 elif arg == "3m" or arg == "3M":
                     kline_interval = Client.KLINE_INTERVAL_3MINUTE
+                    sleeptime = 3
                 elif arg == "5m" or arg == "5M":
                     kline_interval = Client.KLINE_INTERVAL_5MINUTE
+                    sleeptime = 5
                 elif arg == "15m" or arg == "15M":
                     kline_interval = Client.KLINE_INTERVAL_15MINUTE
+                    sleeptime = 15
                 elif arg == "30m" or arg == "30M":
                     kline_interval = Client.KLINE_INTERVAL_30MINUTE
+                    sleeptime = 30
                 elif arg == "1h" or arg == "1H":
                     kline_interval = Client.KLINE_INTERVAL_1HOUR
+                    sleeptime = 60
                 elif arg == "2h" or arg == "2H":
                     kline_interval = Client.KLINE_INTERVAL_2HOUR
+                    sleeptime = 120
                 elif arg == "4h" or arg == "4H":
                     kline_interval = Client.KLINE_INTERVAL_4HOUR
+                    sleeptime = 240
                 elif arg == "6h" or arg == "6H":
                     kline_interval = Client.KLINE_INTERVAL_6HOUR
+                    sleeptime = 360
                 elif arg == "8h" or arg == "8H":
                     kline_interval = Client.KLINE_INTERVAL_8HOUR
+                    sleeptime = 480
                 elif arg == "12h" or arg == "12H":
                     kline_interval = Client.KLINE_INTERVAL_12HOUR
+                    sleeptime = 720
                 elif arg == "1d" or arg == "1D":
                     kline_interval = Client.KLINE_INTERVAL_1DAY
+                    sleeptime = 1440
                 elif arg == "3d" or arg == "3D":
                     kline_interval = Client.KLINE_INTERVAL_3DAY
+                    sleeptime = 4320
                 elif arg == "1w" or arg == "1W":
                     kline_interval = Client.KLINE_INTERVAL_1WEEK
+                    sleeptime = 10080
                 elif arg == "1mo" or arg == "1MO":
                     kline_interval = Client.KLINE_INTERVAL_1MONTH
+                    sleeptime = 43200
             elif opt in ("-c", "--pair"):
                 pair = arg
                 if len(pair) == 6:
@@ -262,7 +278,7 @@ def getStartingBalance(client):
         startingBalance = balance['free']
 
 def trade():
-    global pair, pairA, pairB, kline_interval, emaa, emab, emaLength, emaOpen, getpairs, last, startingBalance, allowNegative, forceNone, negativeWay, allowPanic, lastTradeTime, panicticks, pairsearch, max, sleeptime, hilow, hilowp, starttime, negativeMax
+    global pair, pairA, pairB, sleeptime, kline_interval, emaa, emab, emaLength, emaOpen, getpairs, last, startingBalance, allowNegative, forceNone, negativeWay, allowPanic, lastTradeTime, panicticks, pairsearch, max, sleeptime, hilow, hilowp, starttime, negativeMax
     parseOpts(sys.argv[1:])
     client = Client(api_key, api_secret, testnet=False)
     if getpairs == "true":
@@ -300,7 +316,7 @@ def trade():
         print("Current time:         " + time.ctime())
         start = EMAStartTime(emaLength)
         end = currentTimeMillis()
-        klines = client.get_historical_klines(pair, kline_interval, start, end)
+        klines = client.get_historical_klines(pairA + pairB, kline_interval, start, end)
         print("Candlestick interval: " + kline_interval)
         EMAA = float(calculateLastEMA(klines, emaa))
         if hilow != "true":
@@ -322,10 +338,10 @@ def trade():
         if hilow == "true":
             print("Allow high/low trade: " + hilow)
         try:
-            openOrders = client.get_open_orders(symbol=pair)
+            openOrders = client.get_open_orders(symbol=pairA + pairB)
             if len(openOrders) == 0:
                 try:
-                    orders = client.get_all_orders(symbol=pair)
+                    orders = client.get_all_orders(symbol=pairA + pairB)
                     lastPrice = 0
                     lastOrder = 0
                     if len(orders) > 0:
@@ -345,7 +361,7 @@ def trade():
                     prices = client.get_all_tickers()
                     price = 0
                     for p in prices:
-                        if p['symbol'] == pair:
+                        if p['symbol'] == pairA + pairB:
                             price = p['price']
                             break
                     print("Curr price:           " + str(price))
@@ -392,49 +408,34 @@ def trade():
                     panictime = 0
                     if kline_interval == Client.KLINE_INTERVAL_1MINUTE:
                         panictime = 60000 * float(panicticks)
-                        sleeptime = 60
                     elif kline_interval == Client.KLINE_INTERVAL_3MINUTE:
                         panictime = 3 * 60000 * float(panicticks)
-                        sleeptime = 3 * 60
                     elif kline_interval == Client.KLINE_INTERVAL_5MINUTE:
                         panictime = 5 * 60000 * float(panicticks)
-                        sleeptime = 5 * 60
                     elif kline_interval == Client.KLINE_INTERVAL_15MINUTE:
                         panictime = 15 * 60000 * float(panicticks)
-                        sleeptime = 15 * 60
                     elif kline_interval == Client.KLINE_INTERVAL_30MINUTE:
                         panictime = 30 * 60000 * float(panicticks)
-                        sleeptime = 30 * 60
                     elif kline_interval == Client.KLINE_INTERVAL_1HOUR:
                         panictime = 60 * 60000 * float(panicticks)
-                        sleeptime = 60 * 60
                     elif kline_interval == Client.KLINE_INTERVAL_2HOUR:
                         panictime = 2 * 60 * 60000 * float(panicticks)
-                        sleeptime = 2 * 60 * 60
                     elif kline_interval == Client.KLINE_INTERVAL_4HOUR:
                         panictime = 4 * 60 * 60000 * float(panicticks)
-                        sleeptime = 4 * 60 * 60
                     elif kline_interval == Client.KLINE_INTERVAL_6HOUR:
                         panictime = 6 * 60 * 60000 * float(panicticks)
-                        sleeptime = 6 * 60 * 60
                     elif kline_interval == Client.KLINE_INTERVAL_8HOUR:
                         panictime = 8 * 60 * 60000 * float(panicticks)
-                        sleeptime = 8 * 60 * 60
                     elif kline_interval == Client.KLINE_INTERVAL_12HOUR:
                         panictime = 12 * 60 * 60000 * float(panicticks)
-                        sleeptime = 12 * 60 * 60
                     elif kline_interval == Client.KLINE_INTERVAL_1DAY:
                         panictime = 24 * 60 * 60000 * float(panicticks)
-                        sleeptime = 24 * 60 * 60
                     elif kline_interval == Client.KLINE_INTERVAL_3DAY:
                         panictime = 3 * 24 * 60 * 60000 * float(panicticks)
-                        sleeptime = 3 * 24 * 60 * 60
                     elif kline_interval == Client.KLINE_INTERVAL_1WEEK:
                         panictime = 7 * 24 * 60 * 60000 * float(panicticks)
-                        sleeptime = 7 * 24 * 60 * 60
                     elif kline_interval == Client.KLINE_INTERVAL_1MONTH:
                         panictime = 30 * 24 * 60 * 60000 * float(panicticks)
-                        sleeptime = 30 * 24 * 60 * 60
                     if panictime != 0:
                         if lastOrder != 0:
                             if hilow != "true":
@@ -512,7 +513,7 @@ def trade():
                     if dt < dn:
                         print("Cancelling order" + str(o['orderId']) + " ID, because 5 minutes has passed.")
                         client.cancel_order(symbol=o['symbol'], orderId=o['orderId'])
-            time.sleep(10)
+            time.sleep(sleeptime)
         except:
             print("Error occurred")
 
